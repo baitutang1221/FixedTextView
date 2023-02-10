@@ -48,7 +48,6 @@
             android:layout_marginTop="30dp"
             android:text="@string/tc_str1"
             android:textSize="14sp"
-            android:lineSpacingExtra="6dp"
             android:maxLines="3"
             android:ellipsize="end"
             android:background="#EBEBEB"/>
@@ -67,8 +66,9 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="这行不要删"
-            android:textSize="18sp"
-            android:lineSpacingExtra="6dp"
+            android:textSize="22sp"
+            android:textColor="#FF00FF"
+            android:lineSpacingExtra="1dp"
             android:background="#EBEBEB"
             tools:ignore="MissingConstraints" />
 <!--        android:maxLines="15"-->

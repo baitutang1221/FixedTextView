@@ -43,21 +43,15 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
     private float line_space_height = 0.0f;
     //获取行间距乘法器
     private float line_space_height_mult = 1.0f;
-    //获得每行数据集合
-    private final ArrayList<String> contentList = new ArrayList<>(0);
-    //绘制的内容
-    private final List<Object> curList = new ArrayList<>();
-
+    //绘制的内容(数据源)
+    private final List<Object> mCurContentList = new ArrayList<>();
     //行高
     private int _lineHeight;
-
+    //图片画笔
     private Paint mBitPaint;
-
     private final float[] savedWidths = new float[1];
-
-    //断尾的行号,-1为不断尾
+    //断尾打点的行号,-1为不断尾
     private int ellipsizeLineNum = -1;
-    
     private final String THREE_POINTS = "...";
 
     /**
@@ -103,6 +97,10 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         super.onMeasure(widthMeasureSpec, heightMeasureSpec);
         Layout _layout = getLayout();
+
+        //设置控件总宽度
+        layoutWidth = MeasureSpec.getSize(widthMeasureSpec);
+
         if (_layout != null) {
             //获得文本内容文本内容不可以修改,平切判断当前当前内容是否为null
             final String _tvContent = TextUtils.isEmpty(getText()) ? "" : getText().toString();
@@ -116,16 +114,10 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
             textPaint.setColor(getCurrentTextColor());
             //获得行高
             _lineHeight = -rect.top + rect.bottom;
-            //初始化布局
-            initLayout(_layout);
-            //获取行数据集合
-            calculateLines(_tvContent,layoutWidth);
             //设置布局宽高
             initLayoutParams( widthMeasureSpec, heightMeasureSpec);
         }
     }
-
-
 
     /**
      * 设置布局宽高
@@ -135,13 +127,13 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
         int count = 0;//用于记录measure了几次
 
         OUT_FOR:
-        for (int i = 0; i < curList.size(); i++) {
+        for (int i = 0; i < mCurContentList.size(); i++) {
             int index = 0;
             int totalOldIndex = 0;//用于记录一行的开头Index
             int oldIndex = 0;//用来记录上一行measure了几个字
             int oldNums = 0;//记录已经绘制了多少个字
 
-            Object o = curList.get(i);
+            Object o = mCurContentList.get(i);
             if(o instanceof String){
                 String str = (String) o;
                 do{
@@ -159,6 +151,10 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
 
                     //绘制文字
                     String substring = str.substring(totalOldIndex, totalOldIndex + index);
+
+                     //=======================================
+                     //此处省略一万行绘制文字的代码。。。。。。。。
+                     //=======================================
 
                     //更新当行的已绘制宽度
                     thisLineDrawWidth += getTextWidth(substring);
@@ -178,21 +174,121 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                 Bitmap bitmap = bitmapPackageBean.getBitmap();
 
                 if(bitmap != null){
-                    int imageWidth = bitmap.getWidth();
-                    int imageHeight = bitmap.getHeight();
 
-                    //宽高比例
-                    int radio = imageWidth / imageHeight;
+                    //图片默认属性
+                    float imageWidth = bitmap.getWidth();
+                    float imageHeight = bitmap.getHeight();
 
+                    //手动设置的属性
+                    float marginLeft = bitmapPackageBean.getMarginLeft();
+                    float marginRight = bitmapPackageBean.getMarginRight();
+                    float marginTop = bitmapPackageBean.getMarginTop();
+                    float marginBottom = bitmapPackageBean.getMarginBottom(); //暂时没用
+                    float align = bitmapPackageBean.getAlign();
+                    float setImageWidth = bitmapPackageBean.getWidth();
+                    float setImageHeight = bitmapPackageBean.getHeight();
+
+                    //水平方向缩放比例
+                    float xScale = 1.0f;
+                    //竖直方向缩放比例
+                    float yScale = 1.0f;
                     //图片绘制宽度
-                    float measureImageWidth = radio * _lineHeight;
+                    float measureImageWidth;
 
-                    if(thisLineDrawWidth + measureImageWidth > layoutWidth){
+                    //如果设置图片宽高,按照缩放比例进行显示
+                    if(setImageWidth > 0 && setImageHeight > 0){
+                        xScale = setImageWidth / imageWidth;
+                        imageWidth = setImageWidth;
+
+                        yScale = setImageHeight / imageHeight;
+                        imageHeight = setImageHeight;
+
+                        measureImageWidth = imageWidth;
+                    }else{ //反之，图片与文字等高，宽度等比缩放
+                        float radio = imageWidth / imageHeight;//宽高比例
+                        measureImageWidth = radio * _lineHeight;//图片绘制宽度
+                    }
+
+                    //换行
+                    if(thisLineDrawWidth + measureImageWidth + marginLeft + marginRight > layoutWidth){
                         count++;
                         thisLineDrawWidth = 0;
                     }
 
-                    thisLineDrawWidth += measureImageWidth;
+                    //图片的裁减区域
+                    Rect mSrcRect = new Rect(
+                            0,
+                            0,
+                            floatToInt(imageWidth) ,
+                            floatToInt(imageHeight)
+                    );
+
+                    //图片上边界到控件顶部的距离
+                    float top = count * (_lineHeight + line_space_height) + marginTop;
+                    if(align == Align.CENTER){
+                        top += (_lineHeight - imageHeight) / 2.0f;
+                    }else if(align == Align.BOTTOM){
+                        top += (_lineHeight - imageHeight);
+                    }
+
+                    //图片下边界到控件顶部的距离
+                    float bottom;
+                    if(setImageHeight == 0){
+                        bottom = top + _lineHeight;
+                    }else{
+                        bottom = top + setImageHeight;
+                    }
+
+                    //图片的外框区域
+                    Rect mDestRect = new Rect(
+                            floatToInt(thisLineDrawWidth + marginLeft),//图片左边界到控件左边界的距离
+                            floatToInt(top),
+                            floatToInt(measureImageWidth + thisLineDrawWidth + marginLeft),//图片右边界到控件左边界的距离
+                            floatToInt(bottom)
+                    );
+
+                    //如果没有断尾打点的情况
+                    if(ellipsizeLineNum == -1){
+                        //=======================================
+                        //此处省略一万行绘制图片的代码。。。。。。。。
+                        //=======================================
+                    }else{
+                        //设置了断尾，但是实际总行数达不到断尾的行数
+                        if((count + 1) < ellipsizeLineNum){
+                            //=======================================
+                            //此处省略一万行绘制图片的代码。。。。。。。。
+                            //=======================================
+                        }else{
+                            //如果绘制当前图片会超出边界，则丢弃该图片，直接在末尾显示三个点。
+                            if((thisLineDrawWidth + measureImageWidth + marginLeft + marginRight) >= layoutWidth){
+                                //绘制三个点
+
+                            }else{
+                                //获取下一个元素的宽度
+                                int nextItemWidth = getNextItemWidth(i + 1);
+                                //绘制完这个图片还未超出右边界，但是加上下一个元素就达到右边界了
+                                if((thisLineDrawWidth + measureImageWidth  + marginLeft + marginRight + nextItemWidth) >= layoutWidth){
+
+                                    //绘制完这个图片，再绘制三个点，不会超出边界，则丢弃下一个元素。
+                                    if((thisLineDrawWidth + measureImageWidth  + marginLeft + marginRight + getTextWidth(THREE_POINTS)) <= layoutWidth){
+                                        //=======================================
+                                        //此处省略一万行绘制图片的代码。。。。。。。。
+                                        //=======================================
+
+                                        //绘制完图片后，立马绘制三个点，需要更新thisLineDrawWidth
+                                        thisLineDrawWidth += measureImageWidth + marginLeft + marginRight;
+                                    }
+                                    //绘制三个点
+                                    break OUT_FOR;
+                                }
+                                //=======================================
+                                //此处省略一万行绘制图片的代码。。。。。。。。
+                                //=======================================
+                            }
+                        }
+                    }
+
+                    thisLineDrawWidth += measureImageWidth + marginLeft + marginRight;
                     if(thisLineDrawWidth >= layoutWidth){
                         thisLineDrawWidth = 0;
                         count++;
@@ -200,15 +296,16 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                 }
 
             }else{
-                Log.d(TAG,"发现其他类型.....---------------------------------------");
+                Log.d(TAG,"发现其他类型.....");
             }
         }
 
+        //获取断尾行号
         setEllipsizeLineNum(count);
 
-        //设置布局区域
+        //获取布局数据
         int[] _area = getWidthAndHeight(widthMeasureSpec, heightMeasureSpec, layoutWidth, ellipsizeLineNum==-1 ? (count+1) : ellipsizeLineNum, _lineHeight);
-        //设置布局
+        //设置布局宽高
         setMeasuredDimension(_area[0], _area[1]);
     }
 
@@ -224,20 +321,6 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
             ellipsizeLineNum = maxLines;
         }else{
             ellipsizeLineNum = -1;
-        }
-    }
-
-
-    /**
-     * 初始化化布局高度
-     *
-     * @param _layout
-     */
-    private void initLayout(Layout _layout) {
-        //获得布局大小
-        if (layoutWidth < 0) {
-            //获取第一次测量数据
-            layoutWidth = _layout.getWidth();
         }
     }
 
@@ -282,40 +365,6 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
         return _area;
     }
 
-
-    /**
-     * 获取行数据集合
-     * @param content
-     * @param width
-     * @return
-     */
-    private ArrayList<String> calculateLines(String content, int width) {
-        contentList.clear();
-        int length = content.length();
-        float thisLineDrawWidth = textPaint.measureText(content);
-        if (thisLineDrawWidth <= width) {
-            contentList.add(content);
-            return contentList;
-        }
-        int start = 0, end = 1;
-        while (start < length) {
-            if (textPaint.measureText(content, start, end) > width) {
-                String lineText = content.substring(start, end - 1);
-                contentList.add(lineText);
-                start = end - 1;
-            } else if (end < length) {
-                end++;
-            }
-            if (end == length) {
-                String lastLineText = content.subSequence(start, end).toString();
-                contentList.add(lastLineText);
-                break;
-            }
-        }
-        return contentList;
-    }
-
-
     @SuppressLint("DrawAllocation")
     @Override
     protected void onDraw(Canvas canvas) {
@@ -324,13 +373,13 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
         int count = 0;//用于记录measure了几次
 
         OUT_FOR:
-        for (int i = 0; i < curList.size(); i++) {
+        for (int i = 0; i < mCurContentList.size(); i++) {
             int index = 0;
             int totalOldIndex = 0;//用于记录一行的开头Index
             int oldIndex = 0;//用来记录上一行measure了几个字
             int oldNums = 0;//记录已经绘制了多少个字
 
-            Object o = curList.get(i);
+            Object o = mCurContentList.get(i);
             if(o instanceof String){
                 String str = (String) o;
                 do{
@@ -338,22 +387,53 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                     totalOldIndex += oldIndex;
 
                     //获取当行可以绘制的文字数量
-                    index = textPaint.breakText(str, totalOldIndex, str.length(), true, layoutWidth - thisLineDrawWidth, savedWidths);
+                    index = textPaint.breakText(
+                            str,
+                            totalOldIndex,
+                            str.length(),
+                            true,
+                            layoutWidth - thisLineDrawWidth,
+                            savedWidths
+                    );
                     //本行末尾不足以支持一个字符，所以换行重置thisLineDrawWidth为0，再次计算可绘制的字数
                     if(index == 0){
                         count++;
                         thisLineDrawWidth = 0;
-                        index = textPaint.breakText(str, totalOldIndex, str.length(), true, layoutWidth - thisLineDrawWidth, savedWidths);
+                        index = textPaint.breakText(
+                                str,
+                                totalOldIndex,
+                                str.length(),
+                                true,
+                                layoutWidth - thisLineDrawWidth,
+                                savedWidths
+                        );
                     }
 
                     //绘制文字
                     String substring = str.substring(totalOldIndex, totalOldIndex + index);
+                    //本次绘制的文字宽度
+                    int drawTextRealWidth = 0;
 
                     if(ellipsizeLineNum == -1){
-                        canvas.drawText(str, totalOldIndex, totalOldIndex + index, thisLineDrawWidth, -rect.top + (_lineHeight + line_space_height) * count, textPaint);
+                        canvas.drawText(
+                                str,
+                                totalOldIndex,
+                                totalOldIndex + index, thisLineDrawWidth,
+                                getTextY(count),
+                                textPaint
+                        );
+                        drawTextRealWidth = getTextWidth(substring);
                     }else{
                         if((count + 1) < ellipsizeLineNum){
-                            canvas.drawText(str, totalOldIndex, totalOldIndex + index, thisLineDrawWidth, -rect.top + (_lineHeight + line_space_height) * count, textPaint);
+                            canvas.drawText(
+                                    str,
+                                    totalOldIndex,
+                                    totalOldIndex + index,
+                                    thisLineDrawWidth,
+                                    getTextY(count),
+                                    textPaint
+                            );
+                            drawTextRealWidth = getTextWidth(substring);
                         }else{
                             int textWidth = getTextWidth(substring + THREE_POINTS);
                             //如果当前字符串拼接上三个点后绘制，总宽度小于控件宽度
@@ -367,28 +447,38 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                                     canvas.drawText(
                                             lastLineContent,
                                             thisLineDrawWidth,
-                                            -rect.top + (_lineHeight + line_space_height) * count,
+                                            getTextY(count),
                                             textPaint
                                     );
+                                    drawTextRealWidth = getTextWidth(lastLineContent);
                                     break OUT_FOR;
                                 }
                                 //否则正常绘制当前字符串
-                                canvas.drawText(str, totalOldIndex, totalOldIndex + index, thisLineDrawWidth, -rect.top + (_lineHeight + line_space_height) * count, textPaint);
+                                canvas.drawText(
+                                        str,
+                                        totalOldIndex,
+                                        totalOldIndex + index,
+                                        thisLineDrawWidth,
+                                        getTextY(count),
+                                        textPaint
+                                );
+                                drawTextRealWidth = getTextWidth(substring);
                             }else{
                                 String lastLineContent = getLastLineContent(substring, layoutWidth - thisLineDrawWidth);
                                 canvas.drawText(
                                         lastLineContent,
                                         thisLineDrawWidth,
-                                        -rect.top + (_lineHeight + line_space_height) * count,
+                                        getTextY(count),
                                         textPaint
                                 );
+                                drawTextRealWidth = getTextWidth(lastLineContent);
                                 break OUT_FOR;
                             }
                         }
                     }
 
                     //更新当行的已绘制宽度
-                    thisLineDrawWidth += getTextWidth(substring);
+                    thisLineDrawWidth += drawTextRealWidth;
 
                     //更新已绘制的总字数 (仅限当前字符串)
                     oldNums += index;
@@ -414,7 +504,7 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                     float marginLeft = bitmapPackageBean.getMarginLeft();
                     float marginRight = bitmapPackageBean.getMarginRight();
                     float marginTop = bitmapPackageBean.getMarginTop();
-                    float marginBottom = bitmapPackageBean.getMarginBottom();
+                    float marginBottom = bitmapPackageBean.getMarginBottom(); //暂时没用
                     float align = bitmapPackageBean.getAlign();
                     float setImageWidth = bitmapPackageBean.getWidth();
                     float setImageHeight = bitmapPackageBean.getHeight();
@@ -426,7 +516,7 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                     //图片绘制宽度
                     float measureImageWidth;
 
-                    //如果有设置图片宽高,按照缩放比例进行显示
+                    //如果设置图片宽高,按照缩放比例进行显示
                     if(setImageWidth > 0 && setImageHeight > 0){
                         xScale = setImageWidth / imageWidth;
                         imageWidth = setImageWidth;
@@ -435,11 +525,9 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                         imageHeight = setImageHeight;
 
                         measureImageWidth = imageWidth;
-                    }else{ //如果没设置图片宽高，图片与文字等高，宽度等比缩放
-                        //宽高比例
-                        float radio = imageWidth / imageHeight;
-                        //图片绘制宽度
-                        measureImageWidth = radio * _lineHeight;
+                    }else{ //反之，图片与文字等高，宽度等比缩放
+                        float radio = imageWidth / imageHeight;//宽高比例
+                        measureImageWidth = radio * _lineHeight;//图片绘制宽度
                     }
 
                     //换行
@@ -457,7 +545,7 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                     );
 
                     //图片上边界到控件顶部的距离
-                    float top = count * (_lineHeight + line_space_height);
+                    float top = count * (_lineHeight + line_space_height * line_space_height_mult) + marginTop;
                     if(align == Align.CENTER){
                         top += (_lineHeight - imageHeight) / 2.0f;
                     }else if(align == Align.BOTTOM){
@@ -480,10 +568,10 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                             floatToInt(bottom)
                     );
 
+                    float thisImageRealWidth;
+
                     //如果没有断尾打点的情况
                     if(ellipsizeLineNum == -1){
-//                        canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
-
                         if(setImageWidth > 0 && setImageHeight > 0){
                             // 定义矩阵对象
                             Matrix matrix = new Matrix();
@@ -500,41 +588,115 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                                     true
                             );
                             canvas.drawBitmap(dstBmp, thisLineDrawWidth + marginLeft, top, null);
+                            thisImageRealWidth = dstBmp.getWidth() + marginLeft + marginRight;
+
                         }else{
                             canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
+                            thisImageRealWidth = measureImageWidth + marginLeft + marginRight;
                         }
-
-
-
                     }else{
-//                        if((count + 1) < ellipsizeLineNum){
-//                            canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
-//                        }else{
-//                            if((thisLineDrawWidth + measureImageWidth) >= layoutWidth){
-//                                canvas.drawText(
-//                                        THREE_POINTS,
-//                                        thisLineDrawWidth,
-//                                        -rect.top + (_lineHeight + line_space_height) * count,
-//                                        textPaint
-//                                );
-//                                break OUT_FOR;
-//                            }else{
-//                                int nextItemWidth = getNextItemWidth(i + 1);
-//                                if((thisLineDrawWidth + measureImageWidth + nextItemWidth) >= layoutWidth){
-//                                    canvas.drawText(
-//                                            THREE_POINTS,
-//                                            thisLineDrawWidth,
-//                                            -rect.top + (_lineHeight + line_space_height) * count,
-//                                            textPaint
-//                                    );
-//                                    break OUT_FOR;
-//                                }
-//                                canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
-//                            }
-//                        }
+                        //设置了断尾，但是实际总行数达不到断尾的行数
+                        if((count + 1) < ellipsizeLineNum){
+                            //设置了图片宽高
+                            if(setImageWidth > 0 && setImageHeight > 0){
+                                // 定义矩阵对象
+                                Matrix matrix = new Matrix();
+                                // 缩放原图
+                                matrix.postScale(xScale, yScale);
+                                //如果设置了宽高，则按照缩放后的位图宽高显示，否则高度与文字等高，宽度按宽高比显示
+                                Bitmap dstBmp = Bitmap.createBitmap(
+                                        bitmap,
+                                        0,
+                                        0,
+                                        bitmap.getWidth(),
+                                        bitmap.getHeight(),
+                                        matrix,
+                                        true
+                                );
+                                canvas.drawBitmap(dstBmp, thisLineDrawWidth + marginLeft, top, null);
+                                thisImageRealWidth = dstBmp.getWidth() + marginLeft + marginRight;
+                            }else{
+                                canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
+                                thisImageRealWidth = measureImageWidth + marginLeft + marginRight;
+                            }
+                        }else{
+                            //如果绘制当前图片会超出边界，则丢弃该图片，直接在末尾显示三个点。
+                            if((thisLineDrawWidth + measureImageWidth + marginLeft + marginRight) >= layoutWidth){
+                                //绘制三个点
+                                canvas.drawText(
+                                        THREE_POINTS,
+                                        thisLineDrawWidth,
+                                        getTextY(count),
+                                        textPaint
+                                );
+                                break OUT_FOR;
+                            }else{
+                                //获取下一个元素的宽度
+                                int nextItemWidth = getNextItemWidth(i + 1);
+                                //绘制完这个图片还未超出右边界，但是加上下一个元素就达到右边界了
+                                if((thisLineDrawWidth + measureImageWidth  + marginLeft + marginRight + nextItemWidth) >= layoutWidth){
+
+                                    //绘制完这个图片，再绘制三个点，不会超出边界，则丢弃下一个元素。
+                                    if((thisLineDrawWidth + measureImageWidth  + marginLeft + marginRight + getTextWidth(THREE_POINTS)) <= layoutWidth){
+                                        if(setImageWidth > 0 && setImageHeight > 0){
+                                            // 定义矩阵对象
+                                            Matrix matrix = new Matrix();
+                                            // 缩放原图
+                                            matrix.postScale(xScale, yScale);
+                                            //如果设置了宽高，则按照缩放后的位图宽高显示，否则高度与文字等高，宽度按宽高比显示
+                                            Bitmap dstBmp = Bitmap.createBitmap(
+                                                    bitmap,
+                                                    0,
+                                                    0,
+                                                    bitmap.getWidth(),
+                                                    bitmap.getHeight(),
+                                                    matrix,
+                                                    true
+                                            );
+                                            canvas.drawBitmap(dstBmp, thisLineDrawWidth + marginLeft, top, null);
+                                            //绘制完图片后，立马绘制三个点，需要更新thisLineDrawWidth
+                                            thisImageRealWidth = dstBmp.getWidth() + marginLeft + marginRight;
+                                        }else{
+                                            canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
+                                            //绘制完图片后，立马绘制三个点，需要更新thisLineDrawWidth
+                                            thisImageRealWidth = measureImageWidth + marginLeft + marginRight;
+                                        }
+                                    }
+                                    //绘制三个点
+                                    canvas.drawText(
+                                            THREE_POINTS,
+                                            thisLineDrawWidth,
+                                            getTextY(count),
+                                            textPaint
+                                    );
+                                    break OUT_FOR;
+                                }
+                                if(setImageWidth > 0 && setImageHeight > 0){
+                                    // 定义矩阵对象
+                                    Matrix matrix = new Matrix();
+                                    // 缩放原图
+                                    matrix.postScale(xScale, yScale);
+                                    //如果设置了宽高，则按照缩放后的位图宽高显示，否则高度与文字等高，宽度按宽高比显示
+                                    Bitmap dstBmp = Bitmap.createBitmap(
+                                            bitmap,
+                                            0,
+                                            0,
+                                            bitmap.getWidth(),
+                                            bitmap.getHeight(),
+                                            matrix,
+                                            true
+                                    );
+                                    canvas.drawBitmap(dstBmp, thisLineDrawWidth + marginLeft, top, null);
+                                    thisImageRealWidth = dstBmp.getWidth() + marginLeft + marginRight;
+                                }else{
+                                    canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
+                                    thisImageRealWidth = measureImageWidth + marginLeft + marginRight;
+                                }
+                            }
+                        }
                     }
 
-                    thisLineDrawWidth += measureImageWidth + marginLeft + marginRight;
+                    thisLineDrawWidth += thisImageRealWidth;
                     if(thisLineDrawWidth >= layoutWidth){
                         thisLineDrawWidth = 0;
                         count++;
@@ -548,14 +710,17 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
 
     }
 
+    /**
+     * 数字类型转换
+     * @param f
+     * @return
+     */
     public int floatToInt(float f){
         int i = 0;
-        if(f>0) //正数
-        {
+        if(f > 0) {
             i = (int)(f*10 + 5)/10;
         }
-        else if(f<0) //负数
-        {
+        else if(f < 0) {
             i =  (int)(f*10 - 5)/10;
         }
         else {
@@ -570,7 +735,7 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
      * @return
      */
     private int getNextItemWidth(int i){
-        Object o = curList.get(i);
+        Object o = mCurContentList.get(i);
         if(o instanceof String){
             String str = (String) o;
             return getTextWidth(str);
@@ -578,12 +743,19 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
             BitmapPackageBean bitmapPackageBean = (BitmapPackageBean) o;
             Bitmap bitmap = bitmapPackageBean.getBitmap();
             if(bitmap != null){
-                int imageWidth = bitmap.getWidth();
-                int imageHeight = bitmap.getHeight();
-                //宽高比例
-                int radio = imageWidth / imageHeight;
-                //图片绘制宽度
-                return radio * _lineHeight;
+                int marginLeft = bitmapPackageBean.getMarginLeft();
+                int marginRight = bitmapPackageBean.getMarginRight();
+                int setImageWidth = bitmapPackageBean.getWidth();
+                if(setImageWidth > 0){
+                    return setImageWidth + marginLeft + marginRight;
+                }else{
+                    int imageWidth = bitmap.getWidth();
+                    int imageHeight = bitmap.getHeight();
+                    //宽高比例
+                    int radio = imageWidth / imageHeight;
+                    //图片绘制宽度
+                    return radio * _lineHeight + marginLeft + marginRight;
+                }
             }
         }
         return 0;
@@ -628,12 +800,6 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
             }
         }
         return (int)iSum;
-
-//        Rect rect = new Rect();
-//        new Paint().getTextBounds(str, 0, str.length(), rect);
-//        int w = rect.width();
-//        int h = rect.height();
-//        return w;
     }
 
     /**
@@ -662,11 +828,17 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
      * @param values
      */
     public void setContent(Object... values){
-        curList.addAll(Arrays.asList(values));
-//        requestLayout();
+        mCurContentList.addAll(Arrays.asList(values));
         invalidate();
     }
 
-
+    /**
+     * 绘制文字的Y坐标
+     * @param i 行数
+     * @return
+     */
+    private float getTextY(int i){
+        return -rect.top + (_lineHeight + line_space_height * line_space_height_mult) * i;
+    }
 
 }

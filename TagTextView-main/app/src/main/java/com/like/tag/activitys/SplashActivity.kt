@@ -39,9 +39,14 @@ class SplashActivity : AppCompatActivity() {
         bitmapPackageBean.align = Align.TOP
         bitmapPackageBean.width = 30
         bitmapPackageBean.height = 30
+        bitmapPackageBean.marginTop = 10
 
         val bitmapPackageBean2 =
             BitmapPackageBean("img1", 0, 0, bitmap2)
+
+        bitmapPackageBean2.marginLeft = 30
+        bitmapPackageBean2.marginRight = 30
+
         val bitmapPackageBean3 =
             BitmapPackageBean("img1", 0, 0, bitmap3)
 
@@ -58,10 +63,12 @@ class SplashActivity : AppCompatActivity() {
         val bitmapPackageBean6 =
             BitmapPackageBean("img1", 0, 0, bitmap6)
 
+        bitmapPackageBean6.marginLeft = 30
+        bitmapPackageBean6.marginRight = 30
 
 
         image_tv1_2.setContent(
-            bitmapPackageBean4,
+            bitmapPackageBean3,
             bitmapPackageBean,
             bitmapPackageBean,
             "1你好吗？你好吗？",
@@ -73,9 +80,9 @@ class SplashActivity : AppCompatActivity() {
             bitmapPackageBean4,
             "3赵钱孙李周五正旺冯陈褚卫将神汉阳",
             bitmapPackageBean,
-            "4hahhahahhfhahfhafhAAAAAAAAA",
+            "4hahhahahhfhahfhafhAAAAAAAAAabcdefghijklmn",
             bitmapPackageBean5,
-            bitmapPackageBean5,
+            bitmapPackageBean6,
             bitmapPackageBean5,
             "5首先，优先退税服务范围进一步扩大。在2021年度汇算对“上有老下有小”和看病负担较重的纳税人优先退税的基础上，进一步扩大优先退税服务范围，一是“下有小”的范围拓展至填报了3岁以下婴幼儿照护专项附加扣除的纳税人；二是将2022年度收入降幅较大的纳税人也纳入优先退税服务范围。",
             bitmapPackageBean2,
@@ -87,7 +94,7 @@ class SplashActivity : AppCompatActivity() {
             bitmapPackageBean5,
             getString(R.string.tc_str1),
             bitmapPackageBean5,
-            bitmapPackageBean5
+            bitmapPackageBean3
         )
 
 
