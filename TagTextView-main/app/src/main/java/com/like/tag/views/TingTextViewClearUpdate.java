@@ -513,13 +513,12 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
         String threePointString = "...";
         do{
             int thisLineDrawWidth = getTextWidth(tempStr + threePointString);
-            if(thisLineDrawWidth < leaveWidth){
+            if(thisLineDrawWidth <= leaveWidth){
                 break;
             }
             //获取字符串长度
             int codePointCount = tempStr.codePointCount(0, tempStr.length());
             tempStr = subStringFun(tempStr, codePointCount - 1);
-            tempStr = tempStr.substring(0,tempStr.length()-1);
         }while (true);
         return tempStr + threePointString;
     }

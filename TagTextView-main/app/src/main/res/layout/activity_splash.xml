@@ -68,7 +68,7 @@
             android:layout_height="wrap_content"
             android:text="这行不要删"
             android:textSize="14sp"
-            android:maxLines="10"
+            android:maxLines="15"
             android:ellipsize="end"
             android:lineSpacingExtra="6dp"
             android:background="#EBEBEB"

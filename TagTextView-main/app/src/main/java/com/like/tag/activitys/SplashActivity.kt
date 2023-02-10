@@ -93,6 +93,7 @@ class SplashActivity : AppCompatActivity() {
             "7赵钱孙李周五正旺冯陈褚卫将神汉阳222",
             bitmapPackageBean5,
             bitmapPackageBean5,
+            getString(R.string.tc_str1),
             bitmapPackageBean5,
             bitmapPackageBean5
         )
