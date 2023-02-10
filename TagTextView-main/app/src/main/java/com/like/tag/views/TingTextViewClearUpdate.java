@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.text.Layout;
@@ -14,6 +15,7 @@ import android.util.Log;
 
 import androidx.appcompat.widget.AppCompatTextView;
 
+import com.view.text.annotation.Align;
 import com.view.text.bean.BitmapPackageBean;
 
 import java.util.ArrayList;
@@ -55,6 +57,8 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
 
     //断尾的行号,-1为不断尾
     private int ellipsizeLineNum = -1;
+    
+    private final String THREE_POINTS = "...";
 
     /**
      * 构造方法
@@ -351,7 +355,7 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                         if((count + 1) < ellipsizeLineNum){
                             canvas.drawText(str, totalOldIndex, totalOldIndex + index, thisLineDrawWidth, -rect.top + (_lineHeight + line_space_height) * count, textPaint);
                         }else{
-                            int textWidth = getTextWidth(substring + "...");
+                            int textWidth = getTextWidth(substring + THREE_POINTS);
                             //如果当前字符串拼接上三个点后绘制，总宽度小于控件宽度
                             if((textWidth + thisLineDrawWidth) <= layoutWidth){
                                 //获取下一个元素的宽度
@@ -401,68 +405,136 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
                 Bitmap bitmap = bitmapPackageBean.getBitmap();
 
                 if(bitmap != null){
-                    int imageWidth = bitmap.getWidth();
-                    int imageHeight = bitmap.getHeight();
 
-                    //宽高比例
-                    int radio = imageWidth / imageHeight;
+                    //图片默认属性
+                    float imageWidth = bitmap.getWidth();
+                    float imageHeight = bitmap.getHeight();
 
+                    //手动设置的属性
+                    float marginLeft = bitmapPackageBean.getMarginLeft();
+                    float marginRight = bitmapPackageBean.getMarginRight();
+                    float marginTop = bitmapPackageBean.getMarginTop();
+                    float marginBottom = bitmapPackageBean.getMarginBottom();
+                    float align = bitmapPackageBean.getAlign();
+                    float setImageWidth = bitmapPackageBean.getWidth();
+                    float setImageHeight = bitmapPackageBean.getHeight();
+
+                    //水平方向缩放比例
+                    float xScale = 1.0f;
+                    //竖直方向缩放比例
+                    float yScale = 1.0f;
                     //图片绘制宽度
-                    float measureImageWidth = radio * _lineHeight;
+                    float measureImageWidth;
 
-                    if(thisLineDrawWidth + measureImageWidth > layoutWidth){
+                    //如果有设置图片宽高,按照缩放比例进行显示
+                    if(setImageWidth > 0 && setImageHeight > 0){
+                        xScale = setImageWidth / imageWidth;
+                        imageWidth = setImageWidth;
+
+                        yScale = setImageHeight / imageHeight;
+                        imageHeight = setImageHeight;
+
+                        measureImageWidth = imageWidth;
+                    }else{ //如果没设置图片宽高，图片与文字等高，宽度等比缩放
+                        //宽高比例
+                        float radio = imageWidth / imageHeight;
+                        //图片绘制宽度
+                        measureImageWidth = radio * _lineHeight;
+                    }
+
+                    //换行
+                    if(thisLineDrawWidth + measureImageWidth + marginLeft + marginRight > layoutWidth){
                         count++;
                         thisLineDrawWidth = 0;
                     }
 
+                    //图片的裁减区域
                     Rect mSrcRect = new Rect(
                             0,
                             0,
-                            (int) imageWidth ,
-                            (int) imageHeight
+                            floatToInt(imageWidth) ,
+                            floatToInt(imageHeight)
                     );
 
-                    int top = (int) (-rect.top + (count-1) * _lineHeight + line_space_height * count + 4);
-                    int bottom = (int) (-rect.top + (_lineHeight + line_space_height) * count + 4);
-
-                    Rect mDestRect = new Rect(
-                            thisLineDrawWidth,
-                            top,
-                            (int) measureImageWidth + thisLineDrawWidth ,
-                            bottom
-                    );
-
-                    if(ellipsizeLineNum == -1){
-                        canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
-                    }else{
-                        if((count + 1) < ellipsizeLineNum){
-                            canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
-                        }else{
-                            if((thisLineDrawWidth + measureImageWidth) >= layoutWidth){
-                                canvas.drawText(
-                                        "...",
-                                        thisLineDrawWidth,
-                                        -rect.top + (_lineHeight + line_space_height) * count,
-                                        textPaint
-                                );
-                                break OUT_FOR;
-                            }else{
-                                int nextItemWidth = getNextItemWidth(i + 1);
-                                if((thisLineDrawWidth + measureImageWidth + nextItemWidth) >= layoutWidth){
-                                    canvas.drawText(
-                                            "...",
-                                            thisLineDrawWidth,
-                                            -rect.top + (_lineHeight + line_space_height) * count,
-                                            textPaint
-                                    );
-                                    break OUT_FOR;
-                                }
-                                canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
-                            }
-                        }
+                    //图片上边界到控件顶部的距离
+                    float top = count * (_lineHeight + line_space_height);
+                    if(align == Align.CENTER){
+                        top += (_lineHeight - imageHeight) / 2.0f;
+                    }else if(align == Align.BOTTOM){
+                        top += (_lineHeight - imageHeight);
                     }
 
-                    thisLineDrawWidth += measureImageWidth;
+                    //图片下边界到控件顶部的距离
+                    float bottom;
+                    if(setImageHeight == 0){
+                        bottom = top + _lineHeight;
+                    }else{
+                        bottom = top + setImageHeight;
+                    }
+
+                    //图片的外框区域
+                    Rect mDestRect = new Rect(
+                            floatToInt(thisLineDrawWidth + marginLeft),//图片左边界到控件左边界的距离
+                            floatToInt(top),
+                            floatToInt(measureImageWidth + thisLineDrawWidth + marginLeft),//图片右边界到控件左边界的距离
+                            floatToInt(bottom)
+                    );
+
+                    //如果没有断尾打点的情况
+                    if(ellipsizeLineNum == -1){
+//                        canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
+
+                        if(setImageWidth > 0 && setImageHeight > 0){
+                            // 定义矩阵对象
+                            Matrix matrix = new Matrix();
+                            // 缩放原图
+                            matrix.postScale(xScale, yScale);
+                            //如果设置了宽高，则按照缩放后的位图宽高显示，否则高度与文字等高，宽度按宽高比显示
+                            Bitmap dstBmp = Bitmap.createBitmap(
+                                    bitmap,
+                                    0,
+                                    0,
+                                    bitmap.getWidth(),
+                                    bitmap.getHeight(),
+                                    matrix,
+                                    true
+                            );
+                            canvas.drawBitmap(dstBmp, thisLineDrawWidth + marginLeft, top, null);
+                        }else{
+                            canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
+                        }
+
+
+
+                    }else{
+//                        if((count + 1) < ellipsizeLineNum){
+//                            canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
+//                        }else{
+//                            if((thisLineDrawWidth + measureImageWidth) >= layoutWidth){
+//                                canvas.drawText(
+//                                        THREE_POINTS,
+//                                        thisLineDrawWidth,
+//                                        -rect.top + (_lineHeight + line_space_height) * count,
+//                                        textPaint
+//                                );
+//                                break OUT_FOR;
+//                            }else{
+//                                int nextItemWidth = getNextItemWidth(i + 1);
+//                                if((thisLineDrawWidth + measureImageWidth + nextItemWidth) >= layoutWidth){
+//                                    canvas.drawText(
+//                                            THREE_POINTS,
+//                                            thisLineDrawWidth,
+//                                            -rect.top + (_lineHeight + line_space_height) * count,
+//                                            textPaint
+//                                    );
+//                                    break OUT_FOR;
+//                                }
+//                                canvas.drawBitmap(bitmap, mSrcRect, mDestRect, mBitPaint);
+//                            }
+//                        }
+                    }
+
+                    thisLineDrawWidth += measureImageWidth + marginLeft + marginRight;
                     if(thisLineDrawWidth >= layoutWidth){
                         thisLineDrawWidth = 0;
                         count++;
@@ -474,6 +546,22 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
             }
         }
 
+    }
+
+    public int floatToInt(float f){
+        int i = 0;
+        if(f>0) //正数
+        {
+            i = (int)(f*10 + 5)/10;
+        }
+        else if(f<0) //负数
+        {
+            i =  (int)(f*10 - 5)/10;
+        }
+        else {
+            i = 0;
+        }
+        return i;
     }
 
     /**
@@ -510,9 +598,8 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
      */
     private String getLastLineContent(String _drawContent, int leaveWidth){
         String tempStr = _drawContent;
-        String threePointString = "...";
         do{
-            int thisLineDrawWidth = getTextWidth(tempStr + threePointString);
+            int thisLineDrawWidth = getTextWidth(tempStr + THREE_POINTS);
             if(thisLineDrawWidth <= leaveWidth){
                 break;
             }
@@ -520,7 +607,7 @@ public class TingTextViewClearUpdate extends AppCompatTextView {
             int codePointCount = tempStr.codePointCount(0, tempStr.length());
             tempStr = subStringFun(tempStr, codePointCount - 1);
         }while (true);
-        return tempStr + threePointString;
+        return tempStr + THREE_POINTS;
     }
 
     /**
